@@ -1,3 +1,13 @@
-FROM tiangolo/python-machine-learning:python3.7
+FROM continuumio/miniconda3
 
-COPY ./main.py /src/main.py
+# set working directory
+WORKDIR /code
+
+# copy dependencies file
+COPY requirements.txt ./
+
+# install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# copy code base
+COPY ./src /code/src

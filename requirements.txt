@@ -1,0 +1,3 @@
+torch>=1.12.1
+torchvision>=0.13.1
+snntorch>=0.5.3
