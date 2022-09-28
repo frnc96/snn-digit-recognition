@@ -1,10 +1,10 @@
-FROM continuumio/miniconda3
+FROM python:3
 
 # set working directory
 WORKDIR /code
 
 # copy dependencies file
-COPY requirements.txt ./
+COPY ./requirements.txt ./
 
 # install dependencies
 RUN pip install --no-cache-dir -r requirements.txt

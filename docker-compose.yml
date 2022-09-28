@@ -1,9 +1,0 @@
-version: '3.8'
-services:
-  snndr:
-    container_name: "Python"
-    tty: true
-    build:
-      context: ./
-    volumes:
-      - ./src:/code/src
