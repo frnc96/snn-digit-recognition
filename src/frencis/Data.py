@@ -3,10 +3,11 @@ from torch.utils.data import DataLoader
 
 
 class Encoder:
-    # Dataloader arguments
-    batch_size = 128
 
-    def __init__(self):
+    def __init__(self, batch_size=128):
+        # Init batch size
+        self.batch_size = batch_size
+
         # Define a transform
         self.transform = transforms.Compose([
             transforms.Resize((28, 28)),
