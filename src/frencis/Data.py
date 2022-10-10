@@ -16,10 +16,10 @@ class Encoder:
             transforms.Normalize((0,), (1,))])
 
         # Download training data
-        self.mnist_train = datasets.MNIST(root="data", train=True, download=True, transform=self.transform)
+        self.mnist_train = datasets.MNIST(root="../data", train=True, download=True, transform=self.transform)
 
         # Download test data
-        self.mnist_test = datasets.MNIST(root="data", train=True, download=True, transform=self.transform)
+        self.mnist_test = datasets.MNIST(root="../data", train=False, download=True, transform=self.transform)
 
     def get_train_loader(self):
         return DataLoader(self.mnist_train, batch_size=self.batch_size, shuffle=True, drop_last=True)

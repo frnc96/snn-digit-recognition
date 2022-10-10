@@ -5,6 +5,44 @@ import numpy as np
 dtype = torch.float
 
 
+def print_batch_accuracy(
+        net,
+        data,
+        batch_size,
+        targets,
+        train=False
+):
+    output, _ = net(data.view(batch_size, -1))
+    _, idx = output.sum(dim=0).max(1)
+    acc = np.mean((targets == idx).detach().cpu().numpy())
+
+    if train:
+        print(f"Train set accuracy for a single minibatch: {acc * 100:.2f}%")
+    else:
+        print(f"Test set accuracy for a single minibatch: {acc * 100:.2f}%")
+
+
+def train_printer(
+        net,
+        epoch,
+        iter_counter,
+        data,
+        batch_size,
+        targets,
+        test_data,
+        test_targets,
+        loss_hist,
+        test_loss_hist,
+        counter
+):
+    print(f"Epoch {epoch}, Iteration {iter_counter}")
+    print(f"Train Set Loss: {loss_hist[counter]:.2f}")
+    print(f"Test Set Loss: {test_loss_hist[counter]:.2f}")
+    print_batch_accuracy(net, data, batch_size, targets, train=True)
+    print_batch_accuracy(net, test_data, batch_size, test_targets, train=False)
+    print("\n")
+
+
 class BackpropTT:
     loss_hist = []
     test_loss_hist = []
@@ -18,25 +56,7 @@ class BackpropTT:
         self.loss = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(net.parameters(), lr=5e-4, betas=(0.9, 0.999))
 
-    def print_batch_accuracy(self, data, targets, train=False):
-        output, _ = self.net(data.view(self.batch_size, -1))
-        _, idx = output.sum(dim=0).max(1)
-        acc = np.mean((targets == idx).detach().cpu().numpy())
-
-        if train:
-            print(f"Train set accuracy for a single minibatch: {acc * 100:.2f}%")
-        else:
-            print(f"Test set accuracy for a single minibatch: {acc * 100:.2f}%")
-
-    def train_printer(self, epoch, iter_counter, data, targets, test_data, test_targets, counter):
-        print(f"Epoch {epoch}, Iteration {iter_counter}")
-        print(f"Train Set Loss: {self.loss_hist[counter]:.2f}")
-        print(f"Test Set Loss: {self.test_loss_hist[counter]:.2f}")
-        self.print_batch_accuracy(data, targets, train=True)
-        self.print_batch_accuracy(test_data, test_targets, train=False)
-        print("\n")
-
-    def training_loop(self, train_loader, test_loader):
+    def train(self, train_loader, test_loader):
         counter = 0
 
         # Outer training loop
@@ -84,13 +104,27 @@ class BackpropTT:
 
                     # Print train/test loss/accuracy
                     if counter % 50 == 0:
-                        self.train_printer(epoch, iter_counter, data, targets, test_data, test_targets, counter)
+                        train_printer(
+                            net=self.net,
+                            epoch=epoch,
+                            iter_counter=iter_counter,
+                            data=data,
+                            batch_size=self.batch_size,
+                            targets=targets,
+                            test_data=test_data,
+                            test_targets=test_targets,
+                            loss_hist=self.loss_hist,
+                            test_loss_hist=self.test_loss_hist,
+                            counter=counter
+                        )
                     counter += 1
                     iter_counter += 1
 
-        # Iterate through all mini-batches and measure accuracy over the full data set
+    def test(self, test_loader):
         total = 0
         correct = 0
+
+        # Iterate through all mini-batches and measure accuracy over the full data set
         with torch.no_grad():
             self.net.eval()
             for data, targets in test_loader:

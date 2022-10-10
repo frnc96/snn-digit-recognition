@@ -30,7 +30,10 @@ train_loader = encoder.get_train_loader()
 test_loader = encoder.get_test_loader()
 
 # Run the training loop
-backprop_tt.training_loop(train_loader, test_loader)
+backprop_tt.train(train_loader, test_loader)
+
+# Test the model
+backprop_tt.test(test_loader)
 
 # Save the trained model
 # todo
