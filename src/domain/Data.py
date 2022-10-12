@@ -1,13 +1,11 @@
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
+import src.domain.constants.parameters as params
 
 
 class Encoder:
 
-    def __init__(self, batch_size=128):
-        # Init batch size
-        self.batch_size = batch_size
-
+    def __init__(self):
         # Define a transform
         self.transform = transforms.Compose([
             transforms.Resize((28, 28)),
@@ -22,8 +20,8 @@ class Encoder:
         self.mnist_test = datasets.MNIST(root="../data", train=False, download=True, transform=self.transform)
 
     def get_loaders(self):
-        train_loader = DataLoader(self.mnist_train, batch_size=self.batch_size, shuffle=True, drop_last=True)
+        train_loader = DataLoader(self.mnist_train, batch_size=params.BATCH_SIZE, shuffle=True, drop_last=True)
 
-        test_loader = DataLoader(self.mnist_test, batch_size=self.batch_size, shuffle=True, drop_last=True)
+        test_loader = DataLoader(self.mnist_test, batch_size=params.BATCH_SIZE, shuffle=True, drop_last=True)
 
         return train_loader, test_loader

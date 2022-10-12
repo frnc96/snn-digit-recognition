@@ -1,27 +1,19 @@
 import torch
 import torch.nn as nn
 import snntorch as snn
+import src.domain.constants.parameters as params
 
 
 # Define Network
 class Net(nn.Module):
-    def __init__(
-        self,
-        num_inputs=28*28,
-        num_hidden=1000,
-        num_outputs=10,
-        num_steps=25,
-        beta=0.95
-    ):
+    def __init__(self):
         super().__init__()
 
-        self.num_steps = num_steps
-
         # Initialize layers
-        self.fc1 = nn.Linear(num_inputs, num_hidden)
-        self.lif1 = snn.Leaky(beta=beta)
-        self.fc2 = nn.Linear(num_hidden, num_outputs)
-        self.lif2 = snn.Leaky(beta=beta)
+        self.fc1 = nn.Linear(params.NUM_OF_INPUT_NEURONS, params.NUM_OF_HIDDEN_NEURONS)
+        self.lif1 = snn.Leaky(beta=params.LEAKY_BETA)
+        self.fc2 = nn.Linear(params.NUM_OF_HIDDEN_NEURONS, params.NUM_OF_OUTPUT_NEURONS)
+        self.lif2 = snn.Leaky(beta=params.LEAKY_BETA)
 
     def forward(self, x):
         # Initialize hidden states at t=0
@@ -32,7 +24,7 @@ class Net(nn.Module):
         spk2_rec = []
         mem2_rec = []
 
-        for step in range(self.num_steps):
+        for step in range(params.NUM_OF_STEPS):
             cur1 = self.fc1(x)
             spk1, mem1 = self.lif1(cur1, mem1)
             cur2 = self.fc2(spk1)
