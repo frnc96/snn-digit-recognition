@@ -21,8 +21,9 @@ class Encoder:
         # Download test data
         self.mnist_test = datasets.MNIST(root="../data", train=False, download=True, transform=self.transform)
 
-    def get_train_loader(self):
-        return DataLoader(self.mnist_train, batch_size=self.batch_size, shuffle=True, drop_last=True)
+    def get_loaders(self):
+        train_loader = DataLoader(self.mnist_train, batch_size=self.batch_size, shuffle=True, drop_last=True)
 
-    def get_test_loader(self):
-        return DataLoader(self.mnist_test, batch_size=self.batch_size, shuffle=True, drop_last=True)
+        test_loader = DataLoader(self.mnist_test, batch_size=self.batch_size, shuffle=True, drop_last=True)
+
+        return train_loader, test_loader

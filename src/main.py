@@ -26,8 +26,7 @@ encoder = Encoder(batch_size)
 backprop_tt = BackpropTT(network, num_epochs, batch_size, num_steps)
 
 # Get the training and testing data loaders
-train_loader = encoder.get_train_loader()
-test_loader = encoder.get_test_loader()
+train_loader, test_loader = encoder.get_loaders()
 
 # Run the training loop
 backprop_tt.train(train_loader, test_loader)
@@ -36,4 +35,5 @@ backprop_tt.train(train_loader, test_loader)
 backprop_tt.test(test_loader)
 
 # Save the trained model
-# todo
+torch.save(network.state_dict(), "models/1-epoch-snn-backprop-cpu")
+print("Model saved...")
