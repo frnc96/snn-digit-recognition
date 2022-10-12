@@ -1,6 +1,7 @@
 from domain.Data import Encoder
 from domain.Network import Net
 from domain.Training import BackpropTT
+import src.domain.constants.parameters as params
 import torch
 
 # Set the device to run on GPU if available
@@ -25,5 +26,5 @@ backprop_tt.train(train_loader, test_loader)
 backprop_tt.test(test_loader)
 
 # Save the trained model
-torch.save(network.state_dict(), "../models/1-epoch-snn-backprop-cpu")
+torch.save(network.state_dict(), f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{device}.pth")
 print("Model saved...")
