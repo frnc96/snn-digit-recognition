@@ -66,11 +66,11 @@ class BackpropTT:
                 data = data.to(self.device)
                 targets = targets.to(self.device)
 
-                # forward pass
+                # Forward pass
                 self.net.train()
                 spk_rec, mem_rec = self.net(data.view(params.BATCH_SIZE, -1))
 
-                # initialize the loss & sum over time
+                # Initialize the loss & sum over time
                 loss_val = torch.zeros(1, dtype=dtype, device=self.device)
                 for step in range(params.NUM_OF_STEPS):
                     loss_val += self.loss(mem_rec[step], targets)

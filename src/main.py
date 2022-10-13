@@ -1,30 +1,36 @@
 from domain.Data import Encoder
 from domain.Network import Net
 from domain.Training import BackpropTT
+from domain.Evolution import GeneticAlgorithm
 import src.domain.constants.parameters as params
 import torch
 
-# Set the device to run on GPU if available
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-# Init network
-network = Net().to(device)
-
 # Init data encoder
 encoder = Encoder()
-
-# Init trainer
-backprop_tt = BackpropTT(net=network)
-
-# Get the training and testing data loaders
 train_loader, test_loader = encoder.get_loaders()
 
-# Run the training loop
-backprop_tt.train(train_loader, test_loader)
+if params.TRAINING_TYPE == "BTT":
+    print("Training a single SNN using backprop through time")
 
-# Test the model
-backprop_tt.test(test_loader)
+    # Init network
+    backpropModel = Net().to(params.DEVICE)
 
-# Save the trained model
-torch.save(network.state_dict(), f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{device}.pth")
-print("Model saved...")
+    # Train a single network using backpropTT
+    backprop_tt = BackpropTT(net=backpropModel)
+    backprop_tt.train(train_loader, test_loader)
+    backprop_tt.test(test_loader)
+
+    # Save the trained backprop model
+    torch.save(backpropModel.state_dict(), f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{params.DEVICE}.pth")
+    print("Backprop model saved...")
+
+elif params.TRAINING_TYPE == "EVO":
+    print("Training a population of networks using a genetic algorithm")
+
+    # Train the networks with genetic algorithm
+    evo = GeneticAlgorithm(train_loader, test_loader)
+    geneticModel = evo.train().get_global_best()
+
+    # Save the trained evolutionary model
+    torch.save(geneticModel.state_dict(), f"../models/{params.NUM_OF_GENERATIONS}-gen-snn-evolutionary-{params.DEVICE}.pth")
+    print("Evolutionary model saved...")

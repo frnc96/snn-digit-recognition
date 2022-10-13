@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import snntorch as snn
 import src.domain.constants.parameters as params
+from src.domain.utilities.helpers import EvoHelpers
 
 
 # Define Network
@@ -33,3 +34,34 @@ class Net(nn.Module):
             mem2_rec.append(mem2)
 
         return torch.stack(spk2_rec, dim=0), torch.stack(mem2_rec, dim=0)
+
+    def mutate(self):
+        # todo - implement this
+        return self
+        # with torch.no_grad():
+        #     self.mut_rate += torch.normal(mean=0, std=torch.Tensor([0.01]).to(params.DEVICE))
+        #     self.mut_rate[0] = torch.clip(self.mut_rate, min=0.001, max=1)[0].item()
+        #     self.mut_std += torch.normal(mean=0, std=torch.Tensor([0.01]).to(params.DEVICE))
+        #     self.mut_std[0] = torch.clip(self.mut_std, min=0.001, max=3)[0].item()
+        #
+        #     mut_rate = self.mut_rate[0].item()
+        #     mut_std = self.mut_std[0].item()
+        #
+        #     for layer in self.linear_layers:
+        #         layer.weight += EvoHelpers.generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std, params.DEVICE)
+        #         layer.bias += EvoHelpers.generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std, params.DEVICE)
+        #
+        # return self
+
+    def crossover(self, other):
+        # todo - implement this
+        return self.mutate()
+        # child = Net().to(params.DEVICE)
+        # child.load_state_dict(self.state_dict())
+        #
+        # with torch.no_grad():
+        #     for layer_new, layer_p1, layer_p2 in zip(child.linear_layers, self.linear_layers, other.linear_layers):
+        #         layer_new.weight[:, :] = EvoHelpers.tensor_crossover(layer_p1.weight, layer_p2.weight)
+        #         layer_new.bias[:] = EvoHelpers.tensor_crossover(layer_p1.bias, layer_p2.bias)
+        #
+        # return child
