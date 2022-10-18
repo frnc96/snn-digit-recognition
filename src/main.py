@@ -21,7 +21,10 @@ if params.TRAINING_TYPE == "BTT":
     backprop_tt.test(test_loader)
 
     # Save the trained backprop model
-    torch.save(backpropModel.state_dict(), f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{params.DEVICE}.pth")
+    torch.save(
+        backpropModel.state_dict(),
+        f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{params.DEVICE}.pth"
+    )
     print("Backprop model saved...")
 
 elif params.TRAINING_TYPE == "EVO":
@@ -32,5 +35,8 @@ elif params.TRAINING_TYPE == "EVO":
     geneticModel = evo.train().get_global_best()
 
     # Save the trained evolutionary model
-    torch.save(geneticModel.state_dict(), f"../models/{params.NUM_OF_GENERATIONS}-gen-snn-evolutionary-{params.DEVICE}.pth")
+    torch.save(
+        geneticModel.state_dict(),
+        f"../models/{params.NUM_OF_GENERATIONS}-gen-snn-evolutionary-{params.DEVICE}.pth"
+    )
     print("Evolutionary model saved...")

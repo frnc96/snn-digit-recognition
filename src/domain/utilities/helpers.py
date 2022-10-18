@@ -1,6 +1,9 @@
+import time
 import torch
-import random
+from torch import nn
 import src.domain.constants.parameters as params
+
+dtype = torch.float
 
 
 class EvoHelpers:
@@ -32,17 +35,34 @@ class EvoHelpers:
         return torch.reshape(t3, size)
 
     @staticmethod
-    def evaluate_loss(model, X, y, n_samples=None, with_replacement=False):
+    def evaluate_loss(net, data_loader, counter):
+        start_time = time.time()
+        data_batch = iter(data_loader)
+
+        # Set the loss function
+        loss_function = nn.CrossEntropyLoss()
+        loss_history = []
+
+        # Loop through data in batches
+        for data, targets in data_batch:
+            # Forward pass
+            net.train()
+            spk_rec, mem_rec = net(data.view(params.BATCH_SIZE, -1))
+
+            # Initialize the loss & sum over time
+            loss_val = torch.zeros(1, dtype=dtype, device=params.DEVICE)
+            for step in range(params.NUM_OF_STEPS):
+                loss_val += loss_function(mem_rec[step], targets)
+
+            # Record the loss
+            loss_history.append(loss_val.item())
+
+        print(f"Calculated loss for agent {counter}/{params.POPULATION_SIZE} in {time.time() - start_time:.2f} seconds")
+
+        # Return the avg loss value
+        return sum(loss_history) / len(loss_history)
+
+    @staticmethod
+    def evaluate_accuracy(net):
         # todo - implement this
-        return random.randint(0, 5)
-        # if n_samples:
-        #     if with_replacement:
-        #         idxs = torch.randint(len(X), (n_samples,))
-        #     else:
-        #         idxs = torch.randperm(X.size(0))[:n_samples]
-        #
-        #     X, y = X[idxs].to(params.DEVICE), y[idxs].to(params.DEVICE)
-        # else:
-        #     X, y = X.to(params.DEVICE), y.to(params.DEVICE)
-        #
-        # return torch.nn.functional.cross_entropy(model(X), y).item()
+        pass
