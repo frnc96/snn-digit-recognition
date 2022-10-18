@@ -21,7 +21,6 @@ class Encoder:
 
     def get_loaders(self):
         train_loader = DataLoader(self.mnist_train, batch_size=params.BATCH_SIZE, shuffle=True, drop_last=True)
-
         test_loader = DataLoader(self.mnist_test, batch_size=params.BATCH_SIZE, shuffle=True, drop_last=True)
 
         return train_loader, test_loader

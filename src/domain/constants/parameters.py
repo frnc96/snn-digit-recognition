@@ -17,8 +17,8 @@ NUM_OF_STEPS = 25                   # Number of steps
 BATCH_SIZE = 128                    # Dataset batch size
 
 # Genetic algorithm parameters
-NUM_OF_GENERATIONS = 3              # For how many generations should we train
-POPULATION_SIZE = 4                 # Number of agents in a generation
+NUM_OF_GENERATIONS = 10             # For how many generations should we train
+POPULATION_SIZE = 4                 # Number of agents in a generation (must be at least 4)
 CHILDREN_RATIO = 0.5                # Percentage of population to be replaced by children
 MUTATION_RATE = 0.0001              # Agent mutation rate
 MUTATION_STD = 0.0001               # Agent mutation std

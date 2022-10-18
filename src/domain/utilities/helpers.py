@@ -61,8 +61,3 @@ class EvoHelpers:
 
         # Return the avg loss value
         return sum(loss_history) / len(loss_history)
-
-    @staticmethod
-    def evaluate_accuracy(net):
-        # todo - implement this
-        pass
