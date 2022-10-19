@@ -1,15 +1,17 @@
 import torch
+import random
 import matplotlib.pyplot as plt
 from src.domain.Network import Net
 from src.domain.utilities.helpers import EvoHelpers
 import src.domain.constants.parameters as params
 
 
-def plot(y_values):
-    x_values = list(range(0, params.NUM_OF_GENERATIONS + 1))
-
+def plot(x_values, y_values):
     plt.xlabel("Generation")
     plt.ylabel("Loss")
+
+    plt.xlim((1, params.NUM_OF_GENERATIONS))
+    plt.ylim((0, 3))
 
     plt.plot(x_values, y_values)
     plt.show()
@@ -48,8 +50,8 @@ class GeneticAlgorithm:
         return self
 
     def train(self):
-        y_values = [0] * (params.NUM_OF_GENERATIONS + 1)
-        y_values[0] = self.get_mean_loss()
+        x_values = []
+        y_values = []
 
         # Get population slice index
         slice_best = int(len(self.population) * params.CHILDREN_RATIO)
@@ -58,41 +60,33 @@ class GeneticAlgorithm:
         for generation_number in range(1, params.NUM_OF_GENERATIONS + 1):
             print(f"Generation {generation_number}/{params.NUM_OF_GENERATIONS}")
 
+            parents = self.population
+
             # Keep only the first 50%
             self.population = self.population[:slice_best]
 
-            # The fittest 50% will be the parents
-            parents = self.population
+            # Keep generating children from randomly selected parents
+            while len(self.population) < params.POPULATION_SIZE:
+                parent_one: Net = self.get_random_parent(parents)
+                parent_two: Net = self.get_random_parent(parents)
 
-            # Init the children list
-            children = []
+                child: Net = parent_one.crossover(parent_two).mutate()
 
-            # Crossover the parents and mutate the children
-            for agent_index in range(0, len(parents), 2):
-                if len(parents) + 1 == agent_index:
-                    continue
-
-                parent_one: Net = parents[agent_index][-1]
-                parent_two: Net = parents[agent_index + 1][-1]
-
-                child_one: Net = parent_one.crossover(parent_two).mutate()
-                child_two: Net = parent_one.crossover(parent_two).mutate()
-                children.append((None, child_one))
-                children.append((None, child_two))
-
-            # Add children to the population
-            self.population += children
+                # Append the child to the population
+                self.population.append((None, child))
 
             # Set loss for new children and sort
             self.sort_population()
+            self.get_global_best()
 
             # Update plot
-            y_values[generation_number] = self.get_mean_loss()
-            plot(y_values)
+            x_values.append(generation_number)
+            y_values.append(self.get_mean_loss())
+            plot(x_values, y_values)
 
         return self
 
-    def evaluate_accuracy(self, net: Net):
+    def evaluate_accuracy(self, net: Net) -> float:
         total = 0
         correct = 0
 
@@ -113,6 +107,11 @@ class GeneticAlgorithm:
 
         return correct / total
 
+    @staticmethod
+    def get_random_parent(parents: list) -> Net:
+        # todo - randomly select based in probability
+        return random.choice(parents)[-1]
+
     def get_mean_loss(self):
         loss_list = list(map(lambda x: x[0], self.population))
         return sum(loss_list) / len(loss_list)
@@ -120,10 +119,10 @@ class GeneticAlgorithm:
     def get_global_best(self):
         loss = self.population[0][0]
         agent = self.population[0][-1]
-        accuracy = self.evaluate_accuracy(agent)
+        accuracy = 100 * self.evaluate_accuracy(agent)
 
         print(f"Best agent loss = {loss}")
-        print(f"Best agent acc = {100 * accuracy:.2f}%")
+        print(f"Best agent acc = {accuracy:.2f}%")
 
         # Return the fittest
-        return agent
+        return agent, round(accuracy)

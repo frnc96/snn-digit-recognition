@@ -10,7 +10,7 @@ class Net(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Initialize layers
+        # Initialize SNN layers
         self.fc1 = nn.Linear(params.NUM_OF_INPUT_NEURONS, params.NUM_OF_HIDDEN_NEURONS)
         self.lif1 = snn.Leaky(beta=params.LEAKY_BETA)
         self.fc2 = nn.Linear(params.NUM_OF_HIDDEN_NEURONS, params.NUM_OF_OUTPUT_NEURONS)
@@ -54,8 +54,8 @@ class Net(nn.Module):
             mut_std = self.mutation_std[0].item()
 
             for layer in self.linear_layers:
-                layer.weight += EvoHelpers.generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std, params.DEVICE)
-                layer.bias += EvoHelpers.generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std, params.DEVICE)
+                layer.weight += EvoHelpers.generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std)
+                layer.bias += EvoHelpers.generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std)
 
         return self
 

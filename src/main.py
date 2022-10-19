@@ -18,12 +18,12 @@ if params.TRAINING_TYPE == "BTT":
     # Train a single network using backpropTT
     backprop_tt = BackpropTT(net=backpropModel)
     backprop_tt.train(train_loader, test_loader)
-    backprop_tt.test(test_loader)
+    model_accuracy = backprop_tt.test(test_loader)
 
     # Save the trained backprop model
     torch.save(
         backpropModel.state_dict(),
-        f"../models/{params.NUM_OF_EPOCHS}-epoch-snn-backprop-{params.DEVICE}.pth"
+        f"../models/{params.NUM_OF_EPOCHS}-epochs-backprop-{params.DEVICE}({model_accuracy}%).pth"
     )
     print("Backprop model saved...")
 
@@ -32,11 +32,11 @@ elif params.TRAINING_TYPE == "EVO":
 
     # Train the networks with genetic algorithm
     evo = GeneticAlgorithm(train_loader, test_loader)
-    geneticModel = evo.train().get_global_best()
+    genetic_model, model_accuracy = evo.train().get_global_best()
 
     # Save the trained evolutionary model
     torch.save(
-        geneticModel.state_dict(),
-        f"../models/{params.NUM_OF_GENERATIONS}-gen-snn-evolutionary-{params.DEVICE}.pth"
+        genetic_model.state_dict(),
+        f"../models/{params.NUM_OF_GENERATIONS}-gen-{params.POPULATION_SIZE}-pop-evolutionary-{params.DEVICE}({model_accuracy}%).pth"
     )
     print("Evolutionary model saved...")

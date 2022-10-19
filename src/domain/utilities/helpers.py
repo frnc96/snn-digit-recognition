@@ -9,11 +9,11 @@ dtype = torch.float
 class EvoHelpers:
 
     @staticmethod
-    def generate_mutation_matrix(size, prob, std, device):
-        mean = torch.zeros(size, device=device)
+    def generate_mutation_matrix(size, prob, std):
+        mean = torch.zeros(size, device=params.DEVICE)
 
-        std = torch.full(size, std, device=device)
-        chance = torch.full(size, prob, device=device)
+        std = torch.full(size, std, device=params.DEVICE)
+        chance = torch.full(size, prob, device=params.DEVICE)
         bernoulli = torch.bernoulli(chance)
         pertub = torch.normal(mean=mean, std=std)
 
@@ -55,7 +55,7 @@ class EvoHelpers:
                 loss_val += loss_function(mem_rec[step], targets)
 
             # Record the loss
-            loss_history.append(loss_val.item())
+            loss_history.append(loss_val.item() / params.NUM_OF_STEPS)
 
         print(f"Calculated loss for agent {counter}/{params.POPULATION_SIZE} in {time.time() - start_time:.2f} seconds")
 

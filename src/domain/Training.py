@@ -135,5 +135,9 @@ class BackpropTT:
                 total += targets.size(0)
                 correct += (predicted == targets).sum().item()
 
+            accuracy = 100 * (correct / total)
+
             print(f"Total correctly classified test set images: {correct}/{total}")
-            print(f"Test Set Accuracy: {100 * correct / total:.2f}%")
+            print(f"Test Set Accuracy: {accuracy:.2f}%")
+
+            return round(accuracy)
