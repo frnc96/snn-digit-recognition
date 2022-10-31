@@ -73,7 +73,7 @@ def _get_mnist_snn_encoding(
     encoding_settings_label: str,
     enc_function: t.Callable,
     batch_size: int,
-    train: bool = True,
+    train: bool,
     cache_dir: Path = Path('./data/'),
     transforms: trf.Compose | None = None,
 ) -> Dataset:
@@ -102,6 +102,7 @@ def _get_mnist_snn_encoding(
 def get_mnist_snn_encoding__rate(
     batch_size: int,
     num_steps: int,
+    train: bool,
 ) -> Dataset:
     return DataLoader(
         _get_mnist_snn_encoding(
@@ -109,7 +110,9 @@ def get_mnist_snn_encoding__rate(
             encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}',
             enc_function=partial(sg.rate, num_steps=num_steps),  # type: ignore
             batch_size=batch_size,
+            train=train,
         ),
+        pin_memory=True,
         # TODO: Add additional params as needed.
     )
 
@@ -119,6 +122,7 @@ def get_mnist_snn_encoding__latency(
     num_steps: int,
     tau: float,
     threshold: float,
+    train: bool,
 ) -> Dataset:
     return DataLoader(
         _get_mnist_snn_encoding(
@@ -126,21 +130,10 @@ def get_mnist_snn_encoding__latency(
             encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}__tau={tau:.5f}__threshold={threshold:.5f}',
             enc_function=partial(sg.latency, num_steps=num_steps, tau=tau, threshold=threshold),  # type: ignore
             batch_size=batch_size,
+            train=train,
         ),
+        pin_memory=True,
         # TODO: Add additional params as needed.
-    )
-
-
-def get_mnist_snn_encoding__delta(
-    batch_size: int,
-    threshold: float,
-    off_spike: bool,
-) -> Dataset:
-    return _get_mnist_snn_encoding(
-        encoding_type_label='mnist_delta',
-        encoding_settings_label=f'batch_size={batch_size}__threshold={threshold:.5f}__off_spike={off_spike}',
-        enc_function=partial(sg.delta, threshold=threshold, off_spike=off_spike),  # type: ignore
-        batch_size=batch_size,
     )
 
 
