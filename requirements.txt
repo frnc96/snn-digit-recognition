@@ -1,5 +1,9 @@
+# When installing PyTorch for Cuda 11.6, include this line. 11.7 shouldn¨t need it.
+# --extra-index-url https://download.pytorch.org/whl/cu116
+
 torch~=1.12.1
 torchvision~=0.13.1
 snntorch~=0.5.3
 matplotlib~=3.6.0
 numpy~=1.23.3
+tqdm ~= 4.64.1
