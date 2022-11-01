@@ -9,13 +9,13 @@ import torch as T
 import torchvision as tv
 import torchvision.transforms.transforms as trf
 from torch.utils.data import DataLoader, Dataset
-from tqdm import trange
+from tqdm import tqdm, trange
 
 
-class DatasetPreprocessed(Dataset):
+class DatasetOnDisk(Dataset):
     """A dataset that is preprocessed and saved to disk, for data that doesn't fit into memory."""
 
-    def __init__(self, folder):
+    def __init__(self, folder: Path):
         # Set up references to the files in the dataset.
         self.folder = Path(folder)
         self.files_X = sorted(self.folder.glob('X_*.pt'))
@@ -29,7 +29,32 @@ class DatasetPreprocessed(Dataset):
         """Return a data pair."""
         X = T.load(self.files_X[idx])
         y = T.load(self.files_y[idx])
+
         return X, y
+
+
+class DatasetInMemory(DatasetOnDisk):
+    """A dataset that loads a DatasetOnDisk into memory."""
+
+    def __init__(self, folder: Path):
+        super().__init__(folder)
+
+        X = T.load(self.files_X[0])
+        for file in tqdm(self.files_X[1:]):
+            X = T.cat((X, T.load(file)), dim=0)
+        self.X = X
+
+        y = T.load(self.files_y[0])
+        for path in tqdm(self.files_y[1:]):
+            y = T.cat((y, T.load(path)))
+        self.y = y
+
+    def __len__(self):
+        return self.X.size(0)
+
+    def __getitem__(self, idx):
+        """Return a data pair."""
+        return self.X[idx, :], self.y[idx, :]
 
 
 def get_default_mnist_transforms() -> trf.Compose:
@@ -42,10 +67,7 @@ def get_default_mnist_transforms() -> trf.Compose:
         A torchvision.transforms.Compose object.
     """
     return trf.Compose([
-        trf.Resize((28, 28)),
-        trf.Grayscale(),
         trf.ToTensor(),
-        trf.Normalize((0,), (1,)),
         trf.Lambda(lambda x: T.flatten(x)),
     ])
 
@@ -101,14 +123,14 @@ def get_mnist_processed(
         y[T.arange(y_temp.size(0)), y_temp] = 1
 
         # Save the data to disk for later use.
-        cache_dir_mnist_processed.mkdir(parents=True)
+        cache_dir_mnist_processed.mkdir(parents=True, exist_ok=True)
         T.save(X, path_X)
         T.save(y, path_y)
 
     return X, y
 
 
-def _get_mnist_snn_encoding(
+def _get_mnist_dataset_spike_encoded(
     encoding_type_label: str,
     encoding_settings_label: str,
     enc_function: t.Callable,
@@ -116,6 +138,8 @@ def _get_mnist_snn_encoding(
     train: bool,
     cache_dir: Path = Path('./data/'),
     transforms: trf.Compose | None = None,
+    show_progress: bool = False,
+    in_memory: bool = False,
 ) -> Dataset:
     """A base function to easily make MNIST datasets with spike-encoded data.
 
@@ -131,6 +155,8 @@ def _get_mnist_snn_encoding(
         A Dataset object with spike-encoded data X, y.
     """
     # Sets of the cache dir.
+    test_train_prefix = 'train' if train else 'test'
+    encoding_settings_label = f"{test_train_prefix}__{encoding_settings_label}"
     cache_dir_mnist_snn = cache_dir / encoding_type_label / encoding_settings_label
 
     # Set up filename templates.
@@ -142,72 +168,80 @@ def _get_mnist_snn_encoding(
     if not cache_dir_mnist_snn.exists():
         X, y = get_mnist_processed(train=train, cache_dir=cache_dir, transforms=transforms)
 
-        X = X.cuda()  # TODO: Hardcoded; fix later.
-        y = y.cuda()  # TODO: Hardcoded; fix later.
-
         cache_dir_mnist_snn.mkdir(parents=True)
-        for i in trange(0, X.size(0)+1, batch_size):
+        range_ = trange if show_progress else range
+        for i in range_(0, X.size(0)+1, batch_size):
             # For each batch, encode X, then save X, y to disk.
             idx_start = i
             idx_end = min(i + batch_size, X.size(0))
             X_i = enc_function(X[idx_start:idx_end, :])
+            # Swap the axes so (T, N, C) becomes (N, T, C).
+            X_i = X_i.permute(1, 0, 2)
             y_i = y[idx_start:idx_end, :]
 
-            T.save(X_i.cpu(), cache_dir_mnist_snn / path_X_template.format(i=i))
-            T.save(y_i.cpu(), cache_dir_mnist_snn / path_y_template.format(i=i))
+            T.save(X_i, cache_dir_mnist_snn / path_X_template.format(i=i))
+            T.save(y_i, cache_dir_mnist_snn / path_y_template.format(i=i))
+    if in_memory:
+        return DatasetInMemory(cache_dir_mnist_snn)
+    else:
+        return DatasetOnDisk(cache_dir_mnist_snn)
 
-    return DatasetPreprocessed(cache_dir_mnist_snn)
 
-
-def get_mnist_snn_encoding__rate(
+def get_mnist_dataset_spike_encoded__rate(
     batch_size: int,
     num_steps: int,
     train: bool = True,
     cache_dir: Path = Path('./data/'),
+    show_progress: bool = False,
+    in_memory: bool = False,
 ) -> Dataset:
     """Get the MNIST dataset with rate-encoded data."""
-    return DataLoader(
-        _get_mnist_snn_encoding(
-            encoding_type_label='mnist_rate_encoded',
-            encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}',
-            enc_function=partial(sg.rate, num_steps=num_steps),  # type: ignore
-            batch_size=batch_size,
-            train=train,
-            cache_dir=cache_dir,
-        ),
-        pin_memory=True,
-        # TODO: Add additional params as needed.
+    return _get_mnist_dataset_spike_encoded(
+        encoding_type_label='mnist_rate_encoded',
+        encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}',
+        enc_function=partial(sg.rate, num_steps=num_steps),  # type: ignore
+        batch_size=batch_size,
+        train=train,
+        cache_dir=cache_dir,
+        show_progress=show_progress,
+        in_memory=in_memory,
     )
 
 
-def get_mnist_snn_encoding__latency(
+def get_mnist_dataset_spike_encoded__latency(
     batch_size: int,
     num_steps: int,
     tau: float,
     threshold: float,
     train: bool = True,
     cache_dir: Path = Path('./data/'),
+    show_progress: bool = False,
+    in_memory: bool = False,
 ) -> Dataset:
     """Get the MNIST dataset with latency-encoded data."""
-    return DataLoader(
-        _get_mnist_snn_encoding(
-            encoding_type_label='mnist_latency',
-            encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}__tau={tau:.5f}__threshold={threshold:.5f}',
-            enc_function=partial(sg.latency, num_steps=num_steps, tau=tau, threshold=threshold),  # type: ignore
-            batch_size=batch_size,
-            train=train,
-            cache_dir=cache_dir,
-        ),
-        pin_memory=True,
-        # TODO: Add additional params as needed.
+    return _get_mnist_dataset_spike_encoded(
+        encoding_type_label='mnist_latency',
+        encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}__tau={tau:.5f}__threshold={threshold:.5f}',
+        enc_function=partial(sg.latency, num_steps=num_steps, tau=tau, threshold=threshold),  # type: ignore
+        batch_size=batch_size,
+        train=train,
+        cache_dir=cache_dir,
+        show_progress=show_progress,
+        in_memory=in_memory,
     )
 
 
 if __name__ == '__main__':
+    train_dataset = get_mnist_dataset_spike_encoded__rate(
+        128,
+        16,
+        cache_dir=Path('/mnt/disks/gpu_dev_ssd/data/'),
+        show_progress=True,
+        train=True,
+        in_memory=True
+    )
 
-    import time
-    start_time = time.time()
-    dl = get_mnist_snn_encoding__rate(1024, 128, cache_dir=Path('/mnt/disks/gpu_dev_ssd/data/'))
-    for X, y in dl:
-        print(X.size(), y.size())
-    print(f"Time taken: {time.time() - start_time:.2f} seconds")
+    dl = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
+    X, y = next(iter(dl))
+
+    print(X.shape)
