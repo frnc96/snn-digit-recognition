@@ -8,12 +8,13 @@ from tqdm import trange
 
 from datasets import get_mnist_dataset_spike_encoded__rate, get_mnist_dataset_spike_encoded__latency
 from src.evaluation import evaluate_accuracy_dataloader, evaluate_loss_dataloader
-from src.networks import Net
+from src.networks.leaky import LeakyOneLayer as Net
 import matplotlib.pyplot as plt
 import datetime as dt
 import math
 import json
 import torch as T
+import zipfile
 
 
 class MetricTracker:
@@ -77,16 +78,15 @@ def get_datasets__latency(cache_dir: Path):
 
 
 def main(
-    pop_size: int = 32,
-    generations: int = 300,
+    pop_size: int = 16,
+    generations: int = 50,
     device: str = 'cuda',
     cache_dir: Path = Path('/mnt/disks/gpu_dev_ssd/data/'),
-    metrics_dir: Path = Path("./metrics/"),
-    models_dir: Path = Path("./models/"),
+    save_dir: Path = Path("./outputs/"),
     plot_interval: int = 5,
 ):
-    train_dataset, test_dataset = get_datasets__rate(cache_dir)
-    # train_dataset, test_dataset = get_datasets__latency(cache_dir)
+    # train_dataset, test_dataset = get_datasets__rate(cache_dir)
+    train_dataset, test_dataset = get_datasets__latency(cache_dir)
     train_dl = DataLoader(train_dataset, batch_size=8000, shuffle=True, num_workers=4)
     test_dl = DataLoader(test_dataset, batch_size=8000, shuffle=True, num_workers=4)
 
@@ -94,17 +94,38 @@ def main(
 
     # Set up a new folder for this run, based on the current date and time
     now = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    metrics_dir = metrics_dir / now
+    save_dir = save_dir / now
+    code_dir = save_dir / 'code'
+    code_dir.mkdir(parents=True, exist_ok=False)
+    # Save the contents of ./src/ to the code directory in a zipped folder.
+    with zipfile.ZipFile(code_dir / 'src.zip', 'w') as f:
+        for file in Path('./src').glob('**/*.py'):
+            f.write(file, file.relative_to('./src'))
+    metrics_dir = save_dir / 'metrics'
     metrics_dir.mkdir(parents=True, exist_ok=False)
-    models_dir = models_dir / now
+    plots_dir = save_dir / 'plots'
+    plots_dir.mkdir(parents=True, exist_ok=False)
+    models_dir = save_dir / 'models'
     models_dir.mkdir(parents=True, exist_ok=False)
     metric_losses = MetricTracker("Loss", "Generation", "Loss")
     metrics_train_accs = MetricTracker("Training Accuracy", "Generation", "Accuracy")
     metrics_test_accs = MetricTracker("Testing Accuracy", "Generation", "Accuracy")
+    metrics_mut_rate = MetricTracker("Mutation Rate", "Generation", "Mutation Rate")
+    metrics_mut_std = MetricTracker("Mutation Standard Deviation", "Generation", "Mutation Standard Deviation")
+    metrics_betas_l1 = MetricTracker("Beta, layer 1", "Generation", "Beta value")
+    metrics_thresholds_l1 = MetricTracker("Threshold, layer 1", "Generation", "Threshold value")
+    # metrics_betas_l2 = MetricTracker("Beta, layer 2", "Generation", "Beta value")
+    # metrics_thresholds_l2 = MetricTracker("Threshold, layer 2", "Generation", "Threshold value")
     metrics: list[MetricTracker] = [
         metric_losses,
         metrics_train_accs,
-        metrics_test_accs
+        metrics_test_accs,
+        metrics_mut_rate,
+        metrics_mut_std,
+        metrics_betas_l1,
+        metrics_thresholds_l1,
+        # metrics_betas_l2,
+        # metrics_thresholds_l2,
     ]
 
     figure_label = (
@@ -115,9 +136,9 @@ def main(
         f"\nNetwork topology: {population[0].describe()}"
     )
 
-    probs = np.array([1 / (i + 1) for i in range(pop_size)]) ** 1.2
+    probs = np.array([1 / (i + 1) for i in range(pop_size)]) ** 1
     probs = probs / probs.sum()
-    for i_gen in trange(generations):
+    for i_gen in trange(generations+1):
         pop_ranked = evaluate_loss_dataloader(population, train_dl, device)  # type: ignore
 
         pop_ranked = sorted(pop_ranked, key=lambda x: x.value)
@@ -127,13 +148,13 @@ def main(
         for i in range(pop_size):
             p1 = np.random.choice(ranked_population, p=probs)
 
-            if np.random.rand() < 0.8:
+            if np.random.rand() < 0.5:
                 p2 = np.random.choice(ranked_population, p=probs)
                 child = p1.crossover(p2)
             else:
                 child = p1
 
-            if np.random.rand() < 0.8:
+            if np.random.rand() < 0.5:
                 child.mutate()
 
             population.append(child)
@@ -151,6 +172,12 @@ def main(
         metrics_train_accs.update(i_gen, [result.value for result in train_accs])
         metrics_test_accs.update(i_gen, [result.value for result in test_accs])
         metric_losses.update(i_gen, [result.value for result in pop_ranked])
+        metrics_mut_rate.update(i_gen, [float(result.module.mutation_rate.item()) for result in pop_ranked])  # type: ignore
+        metrics_mut_std.update(i_gen, [float(result.module.mutation_std.item()) for result in pop_ranked])  # type: ignore
+        metrics_betas_l1.update(i_gen, [float(result.module.lif1.beta.item()) for result in pop_ranked])  # type: ignore
+        metrics_thresholds_l1.update(i_gen, [float(result.module.lif1.threshold.item()) for result in pop_ranked])  # type: ignore
+        # metrics_betas_l2.update(i_gen, [float(result.module.lif2.beta.item()) for result in pop_ranked])  # type: ignore
+        # metrics_thresholds_l2.update(i_gen, [float(result.module.lif2.threshold.item()) for result in pop_ranked])  # type: ignore
 
         if i_gen % plot_interval == 0:
             grid_size = math.ceil(math.sqrt(len(metrics)))
@@ -166,12 +193,12 @@ def main(
                 if metric.y_lims is not None:
                     ax.set_ylim(*metric.y_lims)
 
-            plot_path = metrics_dir / f'plot_gen={i_gen:04d}.png'
+            plot_path = plots_dir / f'plot_gen={i_gen:04d}.png'
             fig.savefig(str(plot_path))
 
             for metric in metrics:
                 # Pad the name with 4 0s.
-                metrics_path = metrics_dir / f'metrics__{metric.name}__{i_gen:04d}.json'
+                metrics_path = metrics_dir / f'metrics__gen={i_gen:04d}__{metric.name}.json'
                 with open(metrics_path, 'w') as f:
                     json.dump(metric.to_dict(), f, indent=4)
 
