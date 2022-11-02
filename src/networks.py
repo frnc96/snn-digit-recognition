@@ -72,6 +72,15 @@ class Net(nn.Module):
             # self.lif3,
         ]
 
+    def describe(self) -> str:
+        layers = []
+        for layer in self.layers:
+            if isinstance(layer, nn.Linear):
+                layers.append(f"Linear: Weights.size() = {layer.weight.size()}")
+            elif isinstance(layer, snn.Leaky):
+                layers.append(f"Leaky: Beta.size() = {layer.beta.size()}")
+        return "Network(\n    " + ",\n    ".join(layers) + "\n)"
+
     def forward(self, x):
         # Initialize hidden states at t=0
         mem1 = self.lif1.init_leaky()
@@ -117,11 +126,13 @@ class Net(nn.Module):
 
         return self
 
-    def crossover(self, other):
+    def crossover(self, other: 'Net'):
         child = Net().to(self.dev.device)
         child.load_state_dict(self.state_dict())
 
         with T.no_grad():
+            child.mutation_rate.data = (self.mutation_rate.data + other.mutation_rate.data) / 2
+            child.mutation_std.data = (self.mutation_std.data + other.mutation_std.data) / 2
             for layer_new, layer_p1, layer_p2 in zip(child.layers, self.layers, other.layers):
                 if isinstance(layer_new, nn.Linear):
                     layer_new.weight.data = tensor_crossover(layer_p1.weight, layer_p2.weight)
