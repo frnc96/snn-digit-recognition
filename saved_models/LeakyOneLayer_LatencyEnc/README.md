@@ -1,0 +1,24 @@
+# Details
+
+- Encoding
+  - Latency encoding
+  - Number of time steps: 16 
+- Network
+  - Architecture
+    - Linear: 28*28 -> 10
+    - LIF:  10 -> 10
+- Genetic algorithm
+  - Population size: 16
+  - Generations: 50
+  - Crossover probability: 50%
+    - Full network
+      - Mutation rate
+      - Mutation size (gaussian std)
+    - Linear layers
+      - Weights
+      - Bias
+    - Leaky layers
+      - Beta
+      - Threshold
+  - Mutation probability: 50%
+  - Selection probability distribution: PMF = k * sum( 1/(ranking + 1) ) = 1
