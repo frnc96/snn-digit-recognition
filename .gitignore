@@ -1,13 +1,10 @@
 ### Manually added ###
 /.idea
 /venv
-/src/data
 /data/
-/temp/
 /.vscode/
-/metrics/
 /scalene.html
-/models/
+/outputs/
 
 
 
