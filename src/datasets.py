@@ -235,7 +235,9 @@ def get_mnist_dataset_spike_encoded__latency(
             num_steps=num_steps,  # type: ignore
             tau=tau,  # type: ignore
             threshold=threshold,
-            # clip=True, # Used to clip off spikes at the end of the spike train.
+            clip=True,  # Used to clip off spikes at the end of the spike train.
+            normalize=True,
+            linear=True
         ),
         batch_size=batch_size,
         train=train,
