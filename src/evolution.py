@@ -16,8 +16,10 @@ from datasets import (get_mnist_dataset_spike_encoded__latency,
                       get_mnist_dataset_spike_encoded__rate)
 from src.evaluation import (evaluate_accuracy_dataloader,
                             evaluate_loss_dataloader)
-from src.networks.leaky import LeakyTwoLayer as Net
-# from src.networks.alpha import AlphaOneLayer as Net
+# from src.networks.leaky import LeakyOneLayer as Net
+# from src.networks.leaky import LeakyTwoLayer as Net
+# from src.networks.leaky import LeakyThreeLayerr as Net
+from src.networks.alpha import AlphaOneLayer as Net
 
 
 class MetricTracker:
@@ -141,6 +143,7 @@ def main(
         f"Time started: {now}"
         f", generations: {generations}"
         f", #individuals: {pop_size}"
+        f"\nDesc: "
         f"\nNetwork topology: {population[0].describe()}"
     )
 
@@ -193,8 +196,8 @@ def main(
         metric_test_loss.update(i_gen, [result.value for result in test_losses])
         metrics_mut_rate.update(i_gen, [float(result.module.mutation_rate.item()) for result in pop_ranked])  # type: ignore
         metrics_mut_std.update(i_gen, [float(result.module.mutation_std.item()) for result in pop_ranked])  # type: ignore
-        metrics_betas_l1.update(i_gen, [float(result.module.lif1.beta.item()) for result in pop_ranked])  # type: ignore
-        metrics_thresholds_l1.update(i_gen, [float(result.module.lif1.threshold.item()) for result in pop_ranked])  # type: ignore
+        metrics_betas_l1.update(i_gen, [float(result.module.alpha1.beta.item()) for result in pop_ranked])  # type: ignore
+        metrics_thresholds_l1.update(i_gen, [float(result.module.alpha1.threshold.item()) for result in pop_ranked])  # type: ignore
         # metrics_betas_l2.update(i_gen, [float(result.module.lif2.beta.item()) for result in pop_ranked])  # type: ignore
         # metrics_thresholds_l2.update(i_gen, [float(result.module.lif2.threshold.item()) for result in pop_ranked])  # type: ignore
 
@@ -237,10 +240,10 @@ def main(
     print()
     print("--- Finished running! ---")
     print("Summary:")
-    print(f"\tBest training loss: {best_training_loss:.5f}")
-    print(f"\tBest testing loss: {best_test_loss:.5f}")
-    print(f"\tBest training acc: {100*best_training_acc:.2f}%")
-    print(f"\tBest testing acc: {100*best_test_acc:.2f}%")
+    print(f"Final test acc: {100*best_test_acc:.2f}%")
+    print(f"Final train acc: {100*best_training_acc:.2f}%")
+    print(f"Final test loss: {best_test_loss:.5f}")
+    print(f"Final train loss: {best_training_loss:.5f}")
 
 
 if __name__ == '__main__':
