@@ -1,10 +1,10 @@
 ### Manually added ###
 /.idea
 /venv
-/src/data
 /data/
-/temp/
 /.vscode/
+/scalene.html
+/outputs/
 
 
 
