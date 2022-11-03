@@ -168,3 +168,53 @@ class LeakyTwoLayer(LeakyBase):
         y = self.softmax(y)
 
         return y
+
+
+class LeakyThreeLayer(LeakyBase):
+    def __init__(
+        self,
+        num_hidden: int = 10,
+    ):
+        super().__init__()
+
+        # Initialize SNN layers
+        self.fc1 = nn.Linear(self.num_inputs, num_hidden)
+        self.lif1 = snn.Leaky(beta=self.leaky_beta, threshold=self.leaky_threshold)
+        self.fc2 = nn.Linear(num_hidden, num_hidden)
+        self.lif2 = snn.Leaky(beta=self.leaky_beta, threshold=self.leaky_threshold)
+        self.fc3 = nn.Linear(num_hidden, self.num_outputs)
+        self.lif3 = snn.Leaky(beta=self.leaky_beta, threshold=self.leaky_threshold)
+
+        self.layers = [
+            self.fc1,
+            self.lif1,
+            self.fc2,
+            self.lif2,
+            self.fc3,
+            self.lif3,
+        ]
+
+    def forward(self, x):
+        # Initialize hidden states at t=0
+        mem1 = self.lif1.init_leaky()
+        mem2 = self.lif2.init_leaky()
+        mem3 = self.lif3.init_leaky()
+
+        # Record the final layer
+        spk_rec = []
+
+        for step in range(x.size(1)):
+            cur1 = self.fc1(x[:, step, :])
+            spk1, mem1 = self.lif1(cur1, mem1)
+            cur2 = self.fc2(spk1)
+            spk2, mem2 = self.lif2(cur2, mem2)
+            cur3 = self.fc3(spk2)
+            spk3, mem3 = self.lif3(cur3, mem3)
+            spk_rec.append(spk3)
+
+        y = T.stack(spk_rec, dim=1)
+        y = y.sum(dim=1)
+
+        y = self.softmax(y)
+
+        return y
