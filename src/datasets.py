@@ -230,7 +230,13 @@ def get_mnist_dataset_spike_encoded__latency(
     return _get_mnist_dataset_spike_encoded(
         encoding_type_label='mnist_latency',
         encoding_settings_label=f'batch_size={batch_size}__num_steps={num_steps}__tau={tau:.5f}__threshold={threshold:.5f}',
-        enc_function=partial(sg.latency, num_steps=num_steps, tau=tau, threshold=threshold),  # type: ignore
+        enc_function=partial(
+            sg.latency,
+            num_steps=num_steps,  # type: ignore
+            tau=tau,  # type: ignore
+            threshold=threshold,
+            # clip=True, # Used to clip off spikes at the end of the spike train.
+        ),
         batch_size=batch_size,
         train=train,
         cache_dir=cache_dir,
