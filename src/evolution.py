@@ -19,7 +19,11 @@ from src.evaluation import (evaluate_accuracy_dataloader,
 # from src.networks.leaky import LeakyOneLayer as Net
 # from src.networks.leaky import LeakyTwoLayer as Net
 # from src.networks.leaky import LeakyThreeLayerr as Net
-from src.networks.alpha import AlphaOneLayer as Net
+# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution as Net
+# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_Beta50pct as Net
+from src.networks.leaky import LeakyOneLayer_NoBetaThresholdEvolution_Beta50pct_Threshold5 as Net
+# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_HigherMutRateEvolution as Net
+# from src.networks.alpha import AlphaOneLayer as Net
 
 
 class MetricTracker:
@@ -196,8 +200,8 @@ def main(
         metric_test_loss.update(i_gen, [result.value for result in test_losses])
         metrics_mut_rate.update(i_gen, [float(result.module.mutation_rate.item()) for result in pop_ranked])  # type: ignore
         metrics_mut_std.update(i_gen, [float(result.module.mutation_std.item()) for result in pop_ranked])  # type: ignore
-        metrics_betas_l1.update(i_gen, [float(result.module.alpha1.beta.item()) for result in pop_ranked])  # type: ignore
-        metrics_thresholds_l1.update(i_gen, [float(result.module.alpha1.threshold.item()) for result in pop_ranked])  # type: ignore
+        metrics_betas_l1.update(i_gen, [float(result.module.lif1.beta.item()) for result in pop_ranked])  # type: ignore
+        metrics_thresholds_l1.update(i_gen, [float(result.module.lif1.threshold.item()) for result in pop_ranked])  # type: ignore
         # metrics_betas_l2.update(i_gen, [float(result.module.lif2.beta.item()) for result in pop_ranked])  # type: ignore
         # metrics_thresholds_l2.update(i_gen, [float(result.module.lif2.threshold.item()) for result in pop_ranked])  # type: ignore
 
