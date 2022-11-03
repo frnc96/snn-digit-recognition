@@ -20,13 +20,16 @@ from src.evaluation import (evaluate_accuracy_dataloader,
 # from src.networks.leaky import LeakyTwoLayer as Net
 # from src.networks.leaky import LeakyThreeLayerr as Net
 # from src.networks.leaky import LeakyOneLayer_NoBetaEvolution as Net
-# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_Beta50pct as Net
-from src.networks.leaky import LeakyOneLayer_NoBetaThresholdEvolution_Beta50pct_Threshold5 as Net
-# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_HigherMutRateEvolution as Net
+from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_Beta50pct as Net
+# from src.networks.leaky import LeakyTwoLayer_NoBetaEvolution_Beta50pct as Net
 # from src.networks.alpha import AlphaOneLayer as Net
+# from src.networks.leaky import LeakyOneLayer_NoBetaThresholdEvolution_Beta50pct_Threshold5 as Net
+# from src.networks.leaky import LeakyOneLayer_NoBetaEvolution_HigherMutRateEvolution as Net
 
 
 class MetricTracker:
+    """Tracks metrics over time."""
+
     def __init__(
         self, name: str,
         x_label: str,
@@ -52,8 +55,9 @@ class MetricTracker:
 
 
 def get_datasets__rate(cache_dir: Path, device: T.device | str):
+    """Get the datasets with rate-encoded spikes."""
     dataset_settings_rate = {
-        "batch_size": 4000,
+        "batch_size": 4000,  # Batch size is used for the cache on disk; dataloaders have their own batch size.
         "num_steps": 16,
         "cache_dir": cache_dir,
         "show_progress": True,
@@ -69,8 +73,9 @@ def get_datasets__rate(cache_dir: Path, device: T.device | str):
 
 
 def get_datasets__latency(cache_dir: Path, device: T.device | str):
+    """Get the datasets with latency-encoded spikes."""
     dataset_settings_latency = {
-        "batch_size": 4000,
+        "batch_size": 4000,  # Batch size is used for the cache on disk; dataloaders have their own batch size.
         "num_steps": 16,
         "tau": 1,
         "threshold": 0.5,
@@ -90,7 +95,7 @@ def get_datasets__latency(cache_dir: Path, device: T.device | str):
 
 def main(
     pop_size: int = 16,
-    generations: int = 200,
+    generations: int = 3000,
     device: str = 'cuda',
     cache_dir: Path = Path('/mnt/disks/gpu_dev_ssd/data/'),
     save_dir: Path = Path("./outputs/"),
@@ -112,13 +117,15 @@ def main(
     models_dir = save_dir / 'models'
     models_dir.mkdir(parents=True, exist_ok=False)
 
-    # train_dataset, test_dataset = get_datasets__rate(cache_dir, 'cuda')
+    # Get the data laoders.
     train_dataset, test_dataset = get_datasets__rate(cache_dir, 'cuda')
+    # train_dataset, test_dataset = get_datasets__latency(cache_dir, 'cuda')
     train_dl = DataLoader(train_dataset, batch_size=60_000, shuffle=True, num_workers=0)
     test_dl = DataLoader(test_dataset, batch_size=60_000, shuffle=True, num_workers=0)
 
     population: list[Net] = [Net().cuda() for _ in range(pop_size)]
 
+    # Set up metrics.
     metric_train_loss = MetricTracker("Training loss", "Generation", "Loss")
     metric_test_loss = MetricTracker("Testing loss", "Generation", "Loss")
     metrics_train_accs = MetricTracker("Training Accuracy", "Generation", "Accuracy")
@@ -142,6 +149,7 @@ def main(
         # metrics_thresholds_l2,
     ]
 
+    # Set up the title for the figure.
     figure_label = (
         f"Spiking MNIST\n"
         f"Time started: {now}"
@@ -151,29 +159,42 @@ def main(
         f"\nNetwork topology: {population[0].describe()}"
     )
 
-    probs = np.array([1 / (i + 1) for i in range(pop_size)]) ** 1.2
+    # Generate a probability matrix.
+    probs = np.array([1 / (i + 1) for i in range(pop_size)]) ** 2  # type: ignore
     probs = probs / probs.sum()
 
+    # Set up parameters to track the best metrics over time.
     best_training_loss = 999
     best_test_loss = 999
     best_training_acc = 0
     best_test_acc = 0
+    global_best_net = [9999999, population[0]]
     for i_gen in trange(generations+1):
+        # Evaluate and rank the poulation.
         pop_ranked = evaluate_loss_dataloader(population, train_dl, device)  # type: ignore
-
         pop_ranked = sorted(pop_ranked, key=lambda x: x.value)
         ranked_population = np.array([result.module for result in pop_ranked])
 
-        population = []  # [result.module for result in pop_ranked[:1]]  # type: ignore
-        for i in range(pop_size - len(population)):
+        # Save a copy of the best improved netork.
+        if pop_ranked[0].value < global_best_net[0]:
+            global_best_net = [pop_ranked[0].value, pop_ranked[0].module]
+
+        # Create the next population through crossover and mutatiopn.
+        population = [global_best_net[1], pop_ranked[0].module]  # type: ignore
+        for _ in range(pop_size - len(population)):
+            # Select the first parent.
             p1 = np.random.choice(ranked_population, p=probs)
 
+            # Decide whether the next child is a copy of the parent or a crossover
+            # between the parent and another parent.
             if np.random.rand() < 0.8:
                 p2 = np.random.choice(ranked_population, p=probs)
                 child = p1.crossover(p2)
             else:
-                child = p1
+                child = Net().to(device)
+                child.load_state_dict(p1.state_dict())
 
+            # Decide whether to mutate the child.
             if np.random.rand() < 0.8:
                 child.mutate()
 
@@ -206,6 +227,7 @@ def main(
         # metrics_thresholds_l2.update(i_gen, [float(result.module.lif2.threshold.item()) for result in pop_ranked])  # type: ignore
 
         if i_gen % plot_interval == 0:
+            # Generate a new plot every couple of generations.
             grid_size = math.ceil(math.sqrt(len(metrics)))
             fig, axes = plt.subplots(ncols=grid_size, nrows=grid_size, figsize=(8*grid_size, 8*grid_size))
             fig.suptitle(figure_label, x=0.01, y=0.99, horizontalalignment='left', verticalalignment='top')

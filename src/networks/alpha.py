@@ -1,7 +1,19 @@
+"""Networks implementing alpha neurons.
+
+The network usage is specified in the class name and is
+meant for ease of reproducibility.
+
+Crossover and mutation functions are implemented to allow for
+specific behavior that's easy to extend.
+
+For basic usage and examples, see AlphaBase and AlphaOneLayer.
+"""
+
+
 import snntorch as snn
 import torch as T
 import torch.nn as nn
-from src.networks.helpers import generate_mutation_matrix, tensor_crossover
+from src.networks.helpers import generate_mutation_tensor, tensor_crossover
 from src.networks.base_network import BaseNetwork
 from copy import deepcopy
 
@@ -24,7 +36,9 @@ class AlphaBase(nn.Module, BaseNetwork):
         self.fc1 = nn.Linear(num_inputs, num_outputs)
         self.alpha1 = snn.Alpha(alpha=alpha, beta=beta, threshold=threshold)
 
-        self.dev = T.nn.parameter.Parameter(T.empty([1]), requires_grad=False)
+        self.dev = T.nn.parameter.Parameter(T.empty([1]), requires_grad=False)  # Dummy param to get device.
+
+        # Initialize mutation parameters.
         self.mutation_rate = nn.parameter.Parameter(T.Tensor([0.5]), requires_grad=False)
         self.mutation_std = nn.parameter.Parameter(T.Tensor([0.5]), requires_grad=False)
 
@@ -34,6 +48,7 @@ class AlphaBase(nn.Module, BaseNetwork):
         ]
 
     def describe(self) -> str:
+        """Returns a string describing the network."""
         layers = []
         for layer in self.layers:
             if isinstance(layer, nn.Linear):
@@ -43,6 +58,7 @@ class AlphaBase(nn.Module, BaseNetwork):
         return "Network(\n    " + ",\n    ".join(layers) + "\n)"
 
     def mutate(self) -> 'AlphaBase':
+        """Mutates the network in-place."""
         with T.no_grad():
             self.mutation_rate += T.normal(mean=0, std=T.Tensor([0.01]).to(self.dev.device))
             self.mutation_rate.data = T.clip(self.mutation_rate.data, min=0.001, max=1)
@@ -53,21 +69,17 @@ class AlphaBase(nn.Module, BaseNetwork):
             mut_std = self.mutation_std[0].item()
 
             for layer in self.layers:
+                """Different mutation strategies for different modules."""
                 if isinstance(layer, nn.Linear):
-                    layer.weight.data += generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std, device=self.dev.device)
-                    layer.bias.data += generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.weight.data += generate_mutation_tensor(layer.weight.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.bias.data += generate_mutation_tensor(layer.bias.size(), mut_rate, mut_std, device=self.dev.device)
                 elif isinstance(layer, snn.Alpha):
                     pass
-                    # layer.alpha.data += generate_mutation_matrix(layer.alpha.size(), mut_rate, mut_std, device=self.dev.device)
-                    # layer.alpha.data = T.clip(layer.alpha.data, min=0.0, max=1.0)
-                    # layer.beta.data += generate_mutation_matrix(layer.beta.size(), mut_rate, mut_std, device=self.dev.device)
-                    # layer.beta.data = T.clip(layer.beta.data, min=0.0, max=1.0)
-                    # layer.threshold.data += generate_mutation_matrix(layer.threshold.size(), mut_rate, mut_std, device=self.dev.device)
-                    # layer.threshold.data = T.clip(layer.threshold.data, min=0.0, max=10.0)
 
         return self
 
     def crossover(self, other: 'AlphaBase') -> 'AlphaBase':
+        """Crossover with another network."""
         child = deepcopy(self).to(self.dev.device)
         child.load_state_dict(self.state_dict())
 
@@ -80,15 +92,6 @@ class AlphaBase(nn.Module, BaseNetwork):
                     layer_new.bias.data = tensor_crossover(layer_p1.bias, layer_p2.bias)
                 elif isinstance(layer_new, snn.Alpha):
                     pass
-                    # layer_new.threshold.data = (layer_p1.threshold.data + layer_p2.threshold.data) / 2
-                    # if len(layer_new.alpha.data.size()) > 0:
-                    #     layer_new.alpha.data = tensor_crossover(layer_p1.alpha, layer_p2.alpha)
-                    # else:
-                    #     layer_new.alpha.data = (layer_p1.alpha.data + layer_p2.alpha.data) / 2
-                    # if len(layer_new.beta.data.size()) > 0:
-                    #     layer_new.beta.data = tensor_crossover(layer_p1.beta, layer_p2.beta)
-                    # else:
-                    #     layer_new.beta.data = (layer_p1.beta.data + layer_p2.beta.data) / 2
 
         return child
 
@@ -114,10 +117,13 @@ class AlphaOneLayer(AlphaBase):
         spk_rec = []
 
         for step in range(x.size(1)):
+            # For each time step, apply the weight and bias to the input,
             cur1 = self.fc1(x[:, step, :])
+            # Then send the result to the alpha neuron.
             spk1, syn_exc1, syn_inh1, mem1 = self.alpha1(cur1, syn_exc1, syn_inh1, mem1)
             spk_rec.append(spk1)
 
+        # Stack
         y = T.stack(spk_rec, dim=1)
         y = y.sum(dim=1)
 
@@ -170,10 +176,10 @@ class AlphaOneLayer_NoAlphaBetaEvolution_Alpha60pct_Beta40pct(AlphaBase):
 
             for layer in self.layers:
                 if isinstance(layer, nn.Linear):
-                    layer.weight.data += generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std, device=self.dev.device)
-                    layer.bias.data += generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.weight.data += generate_mutation_tensor(layer.weight.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.bias.data += generate_mutation_tensor(layer.bias.size(), mut_rate, mut_std, device=self.dev.device)
                 elif isinstance(layer, snn.Alpha):
-                    layer.threshold.data += generate_mutation_matrix(layer.threshold.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.threshold.data += generate_mutation_tensor(layer.threshold.size(), mut_rate, mut_std, device=self.dev.device)
                     layer.threshold.data = T.clip(layer.threshold.data, min=0.0, max=10.0)
 
         return self

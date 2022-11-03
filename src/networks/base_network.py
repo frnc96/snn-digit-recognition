@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 
 class BaseNetwork(ABC):
-    """Base class for our neural networks."""
+    """An interface specifying required methods."""
 
     @abstractmethod
     def describe(self) -> str:

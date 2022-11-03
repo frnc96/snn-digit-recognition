@@ -37,8 +37,10 @@ class DatasetInMemory(DatasetOnDisk):
     """A dataset that loads a DatasetOnDisk into memory."""
 
     def __init__(self, folder: Path, device: T.device):
+        """Load the dataset from disk into memory, on the specified device."""
         super().__init__(folder)
 
+        # Find each file and load it into memory.
         X = T.load(self.files_X[0])
         for file in tqdm(self.files_X[1:]):
             X = T.cat((X, T.load(file)), dim=0)

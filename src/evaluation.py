@@ -90,13 +90,40 @@ def evaluate_accuracy_dataloader(nets: list[T.nn.Module], data_loader: DataLoade
 
 
 def evaluate_loss_tensor(net: T.nn.Module, X: T.Tensor, y: T.Tensor, device: str) -> float:
+    """Evaluate loss on a tensor for a network.
+
+    Args:
+        net: Network to evaluate.
+        X: Input tensor.
+        y: Target tensor.
+        device: Device to evaluate on.
+    Returns:
+        Loss for the network.
+    """
+    X = X.to(device)
+    y = y.to(device)
+
     y_pred = net(X)
     loss_function = T.nn.CrossEntropyLoss()
     return loss_function(y_pred, y).item()
 
 
 def evaluate_accuracy_tensor(net: T.nn.Module, X: T.Tensor, y: T.Tensor, device: str) -> float:
-    y_pred = net(X)
+    """Evaluate accuracy on a tensor for a network.
+
+    Args:
+        net: Network to evaluate.
+        X: Input tensor.
+        y: Target tensor.
+        device: Device to evaluate on.
+    Returns:
+        Accuracy of the network in percent.
+    """
+
+    X = X.to(device)
+    y = y.to(device)
+
+    y_pred = net(X.to(device))
     y_pred = T.argmax(y_pred, dim=1)
     y = T.argmax(y, dim=1)
-    return (y_pred == y).sum().item() / y.size(0)
+    return (y_pred == y.to(device)).sum().item() / y.size(0)
