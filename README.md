@@ -27,19 +27,18 @@ is the ratio between excitation and inhibition?
 
 ## Environment
 
-The app can be ran locally and any IDE can be used but it is built with Docker and Visual Studio Code in mind.
+The app can be ran locally and any IDE can be used but it is built with Visual Studio Code in mind.
 
 ### Getting started
 
-1. Start Docker Desktop
-2. Make sure you are in the root folder of the app
-3. Run `cd .devcontainer && docker compose up` in the terminal
+1. Clone the repository
+2. Install the dependencies with `pip install -r requirements.txt`
+3. Cuda should be installed on your machine, follow he instructions [here](https://developer.nvidia.com/cuda-toolkit-archive) to install version 11.6.
+4. Run the project with `PYTHONPATH=. python src/main.py`
+5. You can now change code in `maim.py` to run the project with different parameters.
 
-Now you should see a development container called devcontainer in your Docker Desktop app.
-
-### Developing
-
-For development the Docker VSCode plugin is needed. Make sure that the container is running (it should be green in docker desktop, if not click the play button) and navidate to it through the plugin, right click on it and select "Attach to visual studio code". A new VSCode window should open with the app files in the project tree explorer. Happy developing :D
+NB: For running the code efficiently, it is recommended to use an nVidia GPU with 16GB of memory or more, and ideally a good amount of RAM (16GB).
+You might need to set `in_memory=False` in `src/main.py` if you don't have enough RAM. 
 
 ## Collaborators
 

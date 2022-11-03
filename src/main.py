@@ -54,14 +54,14 @@ class MetricTracker:
         }
 
 
-def get_datasets__rate(cache_dir: Path, device: T.device | str):
+def get_datasets__rate(cache_dir: Path, device: T.device | str, in_memory: bool = True):
     """Get the datasets with rate-encoded spikes."""
     dataset_settings_rate = {
         "batch_size": 4000,  # Batch size is used for the cache on disk; dataloaders have their own batch size.
         "num_steps": 16,
         "cache_dir": cache_dir,
         "show_progress": True,
-        "in_memory": True,
+        "in_memory": in_memory,
         "device": device
     }
     print("Setting up data loader for training data...")
@@ -72,7 +72,7 @@ def get_datasets__rate(cache_dir: Path, device: T.device | str):
     return train_dataset, test_dataset
 
 
-def get_datasets__latency(cache_dir: Path, device: T.device | str):
+def get_datasets__latency(cache_dir: Path, device: T.device | str, in_memory: bool = True):
     """Get the datasets with latency-encoded spikes."""
     dataset_settings_latency = {
         "batch_size": 4000,  # Batch size is used for the cache on disk; dataloaders have their own batch size.
@@ -81,7 +81,7 @@ def get_datasets__latency(cache_dir: Path, device: T.device | str):
         "threshold": 0.5,
         "cache_dir": cache_dir,
         "show_progress": True,
-        "in_memory": True,
+        "in_memory": in_memory,
         "device": device
     }
 
@@ -96,11 +96,13 @@ def get_datasets__latency(cache_dir: Path, device: T.device | str):
 def main(
     pop_size: int = 16,
     generations: int = 3000,
-    device: str = 'cuda',
     cache_dir: Path = Path('/mnt/disks/gpu_dev_ssd/data/'),
     save_dir: Path = Path("./outputs/"),
     plot_interval: int = 5,
 ):
+    device: str = 'cuda' if T.cuda.is_available() else 'cpu'
+    in_memory: bool = True
+
     # Set up a new folder for this run, based on the current date and time
     now = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     save_dir = save_dir / now
@@ -118,8 +120,8 @@ def main(
     models_dir.mkdir(parents=True, exist_ok=False)
 
     # Get the data laoders.
-    train_dataset, test_dataset = get_datasets__rate(cache_dir, 'cuda')
-    # train_dataset, test_dataset = get_datasets__latency(cache_dir, 'cuda')
+    train_dataset, test_dataset = get_datasets__rate(cache_dir, 'cuda', in_memory=in_memory)
+    # train_dataset, test_dataset = get_datasets__latency(cache_dir, 'cuda', in_memory=in_memory)
     train_dl = DataLoader(train_dataset, batch_size=60_000, shuffle=True, num_workers=0)
     test_dl = DataLoader(test_dataset, batch_size=60_000, shuffle=True, num_workers=0)
 
