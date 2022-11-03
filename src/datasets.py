@@ -36,17 +36,19 @@ class DatasetOnDisk(Dataset):
 class DatasetInMemory(DatasetOnDisk):
     """A dataset that loads a DatasetOnDisk into memory."""
 
-    def __init__(self, folder: Path):
+    def __init__(self, folder: Path, device: T.device):
         super().__init__(folder)
 
         X = T.load(self.files_X[0])
         for file in tqdm(self.files_X[1:]):
             X = T.cat((X, T.load(file)), dim=0)
+        X = X.to(device)
         self.X = X
 
         y = T.load(self.files_y[0])
         for path in tqdm(self.files_y[1:]):
             y = T.cat((y, T.load(path)))
+        y = y.to(device)
         self.y = y
 
     def __len__(self):
@@ -109,13 +111,12 @@ def get_mnist_processed(
             transforms = get_default_mnist_transforms()
 
         # Load all the data from the MNIST dataset.
-        # It should fit in memory without a problem.
         dataset = tv.datasets.MNIST(root=str(cache_dir), train=train, download=True, transform=transforms)
-        train_loader = DataLoader(dataset, batch_size=len(dataset.targets), shuffle=True, drop_last=True)
+        data_loader = DataLoader(dataset, batch_size=len(dataset.targets), shuffle=True, drop_last=True)
 
-        X, y = next(iter(train_loader))
+        X, y = next(iter(data_loader))
 
-        # Make sure x is of size (N, 784).
+        # Make sure x is the correct size.
         X = X.reshape((X.size(0), -1))
 
         # Convert y to a one-hot vector, that is (N, 1) -> (N, 10).
@@ -136,10 +137,11 @@ def _get_mnist_dataset_spike_encoded(
     enc_function: t.Callable,
     batch_size: int,
     train: bool,
-    cache_dir: Path = Path('./data/'),
-    transforms: trf.Compose | None = None,
-    show_progress: bool = False,
-    in_memory: bool = False,
+    cache_dir: Path,
+    transforms: trf.Compose | None,
+    show_progress: bool,
+    in_memory: bool,
+    device: T.device,
 ) -> Dataset:
     """A base function to easily make MNIST datasets with spike-encoded data.
 
@@ -170,7 +172,7 @@ def _get_mnist_dataset_spike_encoded(
 
         cache_dir_mnist_snn.mkdir(parents=True)
         range_ = trange if show_progress else range
-        for i in range_(0, X.size(0)+1, batch_size):
+        for i in range_(0, X.size(0), batch_size):
             # For each batch, encode X, then save X, y to disk.
             idx_start = i
             idx_end = min(i + batch_size, X.size(0))
@@ -182,7 +184,7 @@ def _get_mnist_dataset_spike_encoded(
             T.save(X_i, cache_dir_mnist_snn / path_X_template.format(i=i))
             T.save(y_i, cache_dir_mnist_snn / path_y_template.format(i=i))
     if in_memory:
-        return DatasetInMemory(cache_dir_mnist_snn)
+        return DatasetInMemory(cache_dir_mnist_snn, device=device)
     else:
         return DatasetOnDisk(cache_dir_mnist_snn)
 
@@ -194,6 +196,8 @@ def get_mnist_dataset_spike_encoded__rate(
     cache_dir: Path = Path('./data/'),
     show_progress: bool = False,
     in_memory: bool = False,
+    device: T.device = T.device('cpu'),
+    transforms: trf.Compose | None = None,
 ) -> Dataset:
     """Get the MNIST dataset with rate-encoded data."""
     return _get_mnist_dataset_spike_encoded(
@@ -205,6 +209,8 @@ def get_mnist_dataset_spike_encoded__rate(
         cache_dir=cache_dir,
         show_progress=show_progress,
         in_memory=in_memory,
+        device=device,
+        transforms=transforms,
     )
 
 
@@ -217,6 +223,8 @@ def get_mnist_dataset_spike_encoded__latency(
     cache_dir: Path = Path('./data/'),
     show_progress: bool = False,
     in_memory: bool = False,
+    device: T.device = T.device('cpu'),
+    transforms: trf.Compose | None = None,
 ) -> Dataset:
     """Get the MNIST dataset with latency-encoded data."""
     return _get_mnist_dataset_spike_encoded(
@@ -228,20 +236,6 @@ def get_mnist_dataset_spike_encoded__latency(
         cache_dir=cache_dir,
         show_progress=show_progress,
         in_memory=in_memory,
+        device=device,
+        transforms=transforms,
     )
-
-
-if __name__ == '__main__':
-    train_dataset = get_mnist_dataset_spike_encoded__rate(
-        128,
-        16,
-        cache_dir=Path('/mnt/disks/gpu_dev_ssd/data/'),
-        show_progress=True,
-        train=True,
-        in_memory=True
-    )
-
-    dl = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=4, pin_memory=True)
-    X, y = next(iter(dl))
-
-    print(X.shape)

@@ -1,9 +1,11 @@
+from copy import deepcopy
+
 import snntorch as snn
 import torch as T
 import torch.nn as nn
-from src.networks.helpers import generate_mutation_matrix, tensor_crossover
+
 from src.networks.base_network import BaseNetwork
-from copy import deepcopy
+from src.networks.helpers import generate_mutation_matrix, tensor_crossover
 
 
 class LeakyBase(nn.Module, BaseNetwork):
@@ -11,12 +13,14 @@ class LeakyBase(nn.Module, BaseNetwork):
         self,
         num_inputs: int = 28*28,
         num_outputs: int = 10,
-        beta: float = 0.5,
+        beta: float = 0.1,
         threshold: float = 1.0,
-        mutation_rate: float = 0.5,
-        mutation_std: float = 1.0,
     ):
         super().__init__()
+
+        self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
+
         self.leaky_beta = beta
         self.leaky_threshold = threshold
         self.softmax = T.nn.Softmax(dim=1)
@@ -26,8 +30,9 @@ class LeakyBase(nn.Module, BaseNetwork):
         self.lif1 = snn.Leaky(beta=beta, threshold=threshold)
 
         self.dev = T.nn.parameter.Parameter(T.empty([1]), requires_grad=False)
-        self.mutation_rate = nn.parameter.Parameter(T.Tensor([mutation_rate]), requires_grad=False)
-        self.mutation_std = nn.parameter.Parameter(T.Tensor([mutation_std]), requires_grad=False)
+        self.mutation_rate = nn.parameter.Parameter(T.Tensor([0.5]), requires_grad=False)
+        self.mutation_std = nn.parameter.Parameter(T.Tensor([0.5]), requires_grad=False)
+        self.mutation_std_0to1 = nn.parameter.Parameter(T.Tensor([0.0001]), requires_grad=False)
 
         self.layers = [
             self.fc1,
@@ -49,16 +54,19 @@ class LeakyBase(nn.Module, BaseNetwork):
             self.mutation_rate.data = T.clip(self.mutation_rate.data, min=0.001, max=1)
             self.mutation_std += T.normal(mean=0, std=T.Tensor([0.01]).to(self.dev.device))
             self.mutation_std.data = T.clip(self.mutation_std.data, min=0.001, max=3)
+            self.mutation_std_0to1 += T.normal(mean=0, std=T.Tensor([0.1]).to(self.dev.device))
+            self.mutation_std_0to1.data = T.clip(self.mutation_std_0to1.data, min=0.00001, max=1.0)
 
             mut_rate = self.mutation_rate[0].item()
             mut_std = self.mutation_std[0].item()
+            mut_std_0to1 = self.mutation_std_0to1[0].item()
 
             for layer in self.layers:
                 if isinstance(layer, nn.Linear):
                     layer.weight.data += generate_mutation_matrix(layer.weight.size(), mut_rate, mut_std, device=self.dev.device)
                     layer.bias.data += generate_mutation_matrix(layer.bias.size(), mut_rate, mut_std, device=self.dev.device)
                 elif isinstance(layer, snn.Leaky):
-                    layer.beta.data += generate_mutation_matrix(layer.beta.size(), mut_rate, mut_std, device=self.dev.device)
+                    layer.beta.data += generate_mutation_matrix(layer.beta.size(), mut_rate, mut_std_0to1, device=self.dev.device)
                     layer.beta.data = T.clip(layer.beta.data, min=0.0, max=1.0)
                     layer.threshold.data += generate_mutation_matrix(layer.threshold.size(), mut_rate, mut_std, device=self.dev.device)
                     layer.threshold.data = T.clip(layer.threshold.data, min=0.0, max=10.0)
@@ -87,24 +95,8 @@ class LeakyBase(nn.Module, BaseNetwork):
 
 
 class LeakyOneLayer(LeakyBase):
-    def __init__(
-        self,
-        num_inputs: int = 28*28,
-        num_hidden: int = 10,
-        num_outputs: int = 10,
-        beta: float = 0.9,
-        threshold: float = 1.0,
-        mutation_rate: float = 0.1,
-        mutation_std: float = 0.5,
-    ):
-        super().__init__(
-            num_inputs=num_inputs,
-            num_outputs=num_outputs,
-            beta=beta,
-            threshold=threshold,
-            mutation_rate=mutation_rate,
-            mutation_std=mutation_std,
-        )
+    def __init__(self):
+        super().__init__()
 
     def describe(self) -> str:
         layers = []
@@ -138,29 +130,22 @@ class LeakyOneLayer(LeakyBase):
 class LeakyTwoLayer(LeakyBase):
     def __init__(
         self,
-        num_inputs: int = 28*28,
         num_hidden: int = 10,
-        num_outputs: int = 10,
-        beta: float = 0.9,
-        threshold: float = 1.0,
-        mutation_rate: float = 0.1,
-        mutation_std: float = 0.5,
     ):
-        super().__init__(
-            num_inputs=num_inputs,
-            num_outputs=num_outputs,
-            beta=beta,
-            threshold=threshold,
-            mutation_rate=mutation_rate,
-            mutation_std=mutation_std,
-        )
+        super().__init__()
 
         # Initialize SNN layers
-        self.fc2 = nn.Linear(num_hidden, num_outputs)
-        self.lif2 = snn.Leaky(beta=beta, threshold=threshold)
+        self.fc1 = nn.Linear(self.num_inputs, num_hidden)
+        self.lif1 = snn.Leaky(beta=self.leaky_beta, threshold=self.leaky_threshold)
+        self.fc2 = nn.Linear(num_hidden, self.num_outputs)
+        self.lif2 = snn.Leaky(beta=self.leaky_beta, threshold=self.leaky_threshold)
 
-        self.layers.append(self.fc2)
-        self.layers.append(self.lif2)
+        self.layers = [
+            self.fc1,
+            self.lif1,
+            self.fc2,
+            self.lif2,
+        ]
 
     def forward(self, x):
         # Initialize hidden states at t=0
@@ -183,8 +168,3 @@ class LeakyTwoLayer(LeakyBase):
         y = self.softmax(y)
 
         return y
-
-
-if __name__ == '__main__':
-    net = LeakyOneLayer()
-    print(net.describe())

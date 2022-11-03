@@ -1,7 +1,9 @@
 from __future__ import annotations
+
+from dataclasses import dataclass
+
 import torch as T
 from torch.utils.data import DataLoader
-from dataclasses import dataclass
 
 
 @dataclass
