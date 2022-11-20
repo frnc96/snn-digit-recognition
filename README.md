@@ -35,7 +35,7 @@ The app can be ran locally and any IDE can be used but it is built with Visual S
 2. Install the dependencies with `pip install -r requirements.txt`
 3. Cuda should be installed on your machine, follow he instructions [here](https://developer.nvidia.com/cuda-toolkit-archive) to install version 11.6.
 4. Run the project with `PYTHONPATH=. python src/main.py`
-5. You can now change code in `maim.py` to run the project with different parameters.
+5. You can now change code in `main.py` to run the project with different parameters.
 
 NB: For running the code efficiently, it is recommended to use an nVidia GPU with 16GB of memory or more, and ideally a good amount of RAM (16GB).
 You might need to set `in_memory=False` in `src/main.py` if you don't have enough RAM. 
